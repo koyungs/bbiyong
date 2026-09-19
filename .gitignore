@@ -1,0 +1,14 @@
+node_modules/
+source/
+prompts/
+tests/
+evidence/
+private/
+PRIVATE_SOURCE/
+REPORTS/
+native-bridge/
+build-tools/
+*.map
+*.zip
+*.txt
+.env*

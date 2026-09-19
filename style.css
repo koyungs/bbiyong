@@ -1,0 +1,51 @@
+#cj-extension{--cj-bg:var(--SmartThemeBlurTintColor,#fff);--cj-ink:var(--SmartThemeBodyColor,#242424);--cj-line:rgba(128,128,128,.27);--cj-soft:rgba(128,128,128,.065);box-sizing:border-box;width:100%;min-width:0;color:var(--cj-ink);text-align:left}
+#cj-extension>#cj-content{margin:8px 0;padding:12px;border:1px solid var(--cj-line);border-radius:8px;background:var(--cj-bg);font-size:14px;line-height:1.5}
+#cj-extension *,#cj-extension *::before,#cj-extension *::after{box-sizing:border-box;min-width:0}
+#cj-extension [hidden]{display:none!important}
+#cj-extension .cj-drawer-title{display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+#cj-extension .cj-drawer-title small{font-size:12px;font-weight:400;opacity:.65}
+#cj-extension .cj-intro{margin:15px 0 13px;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+#cj-extension .cj-tabs{display:grid;grid-template-columns:1fr 1fr;margin-bottom:10px;border:1px solid var(--cj-line);border-radius:6px;overflow:hidden;background:var(--cj-soft)}
+#cj-extension .cj-tabs button{padding:8px;min-height:40px;border:0;border-radius:5px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+#cj-extension .cj-tabs button[aria-selected=true]{background:color-mix(in srgb,var(--cj-ink) 75%,var(--cj-bg));color:var(--cj-bg)}
+#cj-extension button:focus-visible,#cj-extension summary:focus-visible,#cj-extension input:focus-visible,#cj-extension select:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+#cj-extension .cj-section{border:1px solid var(--cj-line);border-radius:6px;margin:10px 0;background:transparent;overflow:hidden}
+#cj-extension .cj-switches{padding:7px 13px}
+#cj-extension .cj-toggle-row{display:grid;grid-template-columns:22px minmax(0,1fr) 40px;align-items:center;gap:10px;min-height:49px;cursor:pointer;font-size:13px}
+#cj-extension .cj-toggle-row>i{font-size:20px;opacity:.75}
+#cj-extension .cj-toggle{appearance:none!important;width:40px!important;height:23px!important;min-height:0;margin:0!important;border:0!important;border-radius:20px;background:#aaa!important;position:relative;cursor:pointer;box-shadow:none!important;filter:none!important}
+#cj-extension .cj-toggle::before{content:'';position:absolute;width:17px;height:17px;top:3px;left:3px;border-radius:50%;background:#fff}
+#cj-extension .cj-toggle:checked{background:#555!important}
+#cj-extension .cj-toggle:checked::before{left:20px}
+#cj-extension input:disabled{opacity:.45;cursor:default}
+#cj-extension h3{display:flex;align-items:center;gap:10px;margin:0;padding:10px 13px;background:var(--cj-soft);border-bottom:1px solid var(--cj-line);font-size:14px;font-weight:600}
+#cj-extension h3 i{font-size:21px;opacity:.75}
+#cj-extension .cj-settings-body{padding:8px 13px 10px}
+#cj-extension .cj-field{display:grid;grid-template-columns:minmax(0,1fr) 74px;align-items:center;gap:12px;margin:7px 0;font-size:13px;min-height:38px}
+#cj-extension .cj-field input,#cj-extension .cj-field select{width:100%;min-width:0;min-height:36px;margin:0;padding:5px 8px;border:1px solid rgba(128,128,128,.55);border-radius:5px;background:transparent;color:inherit;font:inherit;box-shadow:none}
+#cj-extension .cj-muted{font-size:11px;opacity:.68;overflow-wrap:anywhere}
+#cj-extension .cj-help{border-top:1px solid var(--cj-line);padding-top:10px;margin:8px 0 0;line-height:1.65}
+#cj-extension .cj-info{display:flex;gap:11px;align-items:center;padding:10px 12px;margin:9px 0 0;background:var(--cj-soft);border:1px solid var(--cj-line);border-radius:6px;font-size:11px;line-height:1.5}
+#cj-extension .cj-info i{font-size:20px;opacity:.7}
+#cj-extension #cj-call{padding:10px;margin-bottom:0}
+#cj-extension #cj-status{margin:0 0 9px;padding:9px;background:var(--cj-soft);border:1px solid var(--cj-line);border-radius:5px;font-size:12px;overflow-wrap:anywhere}
+#cj-extension .cj-history{grid-template-columns:minmax(0,1fr) minmax(0,46%);margin:6px 0 10px}
+#cj-extension .cj-record{border:1px solid var(--cj-line);border-radius:5px;margin:6px 0;overflow:hidden;background:var(--cj-soft)}
+#cj-extension summary{display:flex;align-items:center;gap:11px;cursor:pointer;min-height:40px;padding:8px 11px;list-style:none;font-size:13px}
+#cj-extension summary::-webkit-details-marker{display:none}
+#cj-extension summary::before{content:'›';font-size:23px;line-height:1;flex:0 0 10px}
+#cj-extension details[open]>summary::before{transform:rotate(90deg)}
+#cj-extension .cj-detail{padding:0 10px 10px;border-top:1px solid var(--cj-line);background:var(--cj-bg);max-width:100%;overflow:hidden}
+#cj-extension .cj-caption{display:block;margin-top:8px;font-size:11px;opacity:.65}
+#cj-extension pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;max-width:100%;max-height:300px;overflow:auto;margin:6px 0;padding:9px;background:var(--cj-soft);border:1px solid var(--cj-line);border-radius:4px;font-size:11px;line-height:1.55;text-align:left}
+#cj-extension #cj-summary{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 10px;font-size:11px}
+#cj-extension #cj-summary dt{opacity:.65}
+#cj-extension #cj-summary dd{margin:0;overflow-wrap:anywhere}
+#cj-extension .cj-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:7px;margin-top:9px}
+#cj-extension .menu_button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;width:auto;margin:0;padding:7px 9px;border:1px solid var(--cj-line);border-radius:5px;background:transparent;color:inherit;font:inherit;font-size:11px;cursor:pointer;box-shadow:none}
+#cj-extension .menu_button:disabled{opacity:.45;cursor:default}
+#cj-extension #cj-copy-fallback{width:100%;max-width:100%;margin-top:8px;resize:vertical}
+#cj-extension #cj-copy-status:empty{display:none}
+@media(max-width:380px){#cj-extension>#cj-content{padding:10px}#cj-extension .cj-toggle-row{gap:7px;font-size:12px}#cj-extension .cj-field{font-size:12px;gap:8px;grid-template-columns:minmax(0,1fr) 65px}#cj-extension .cj-history{grid-template-columns:minmax(0,1fr) minmax(0,46%)}#cj-extension .cj-drawer-title small{font-size:11px}}
+
+#cj-extension .cj-symbol{width:20px;height:20px;flex-shrink:0;opacity:.78;vertical-align:middle}#cj-extension .menu_button .cj-symbol{width:15px;height:15px}
