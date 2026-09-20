@@ -1,4 +1,23 @@
+# 0.5.2-rc.2-structure
+
+- rc.1 프롬프트 7개, 판단 지침, parser, pipeline 및 호출 구조를 그대로 유지.
+- 동일 API 내 연결 설정 변경, Final marker 오류 및 예약 실패 시 실행 정리 보강.
+- 초기화 재시도·부분 event API에서 listener 누락/중복 방지.
+- 겹친 실행의 늦은 종료·메시지 이벤트가 새 실행과 진단 상태에 영향을 주는 경로 차단.
+- 명시적으로 다른 generation type의 요청에서 Final 소비 차단.
+- 텍스트 completion 취소 시 원래 내용과 같은 문자열이 있어도 자신이 삽입한 Final 위치만 복원.
+- Protected 공개 배포에 Terser 5.43.1 적용. stable 승격, WI 연결, 지원 type 확장 없음.
+
 # 변경 기록
+
+## 0.5.2-rc.1 — 부분 수정 검수 후보 (2026-09-20)
+
+- TARGET 이름 echo와 Stage 4 긴 subject echo를 제거하고 코드 소유 identity/원문을 사용합니다. C#와 분기/난수 기준은 유지합니다.
+- 채팅별 판단 지침을 동결하여 Stage 1B/행동 방향/Final에 분리 전달합니다. 실행 중 변경은 stale 처리합니다.
+- 공식 이름 매크로 API로 `{{char}}`/`{{user}}`를 치환합니다. 전체 매크로 해석이 아니며 상태 변경 매크로를 다시 실행하지 않습니다.
+- 빈 장면 명시적 skip, 이름 macro 실패 fail-open, 사용자 이름 변경 stale 검사, reference 미연결 표시, 정상 종료 한국어 표시를 추가했습니다.
+- **미완료:** 실제 활성 WI snapshot, 자동 preset 수집, 전체 카드 macro/override 정렬, 실모델 검증. dry-run 재스캔은 부작용과 확률 재추첨 위험 때문에 연결하지 않았습니다.
+- P2 cache/영어 내부 출력/수동 재사용/모델별 모드는 추가하지 않았습니다.
 
 ## 0.5.1 — Canonical connection reference
 

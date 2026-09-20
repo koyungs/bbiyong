@@ -1,1 +1,1 @@
-export const backgroundInput=()=>({text:"",entries:0,source:"unavailable-before-judgment"});
+export function backgroundInput(){return{text:"",entries:null,status:"unavailable",source:"unavailable-before-judgment",reason:"native-wi-snapshot-not-connected"}}export function referenceLabel(e){return"connected"!==e?.status?"미연결":Number.isInteger(e.entries)&&e.entries>=0?String(e.entries):"연결 · 개수 미확인"}

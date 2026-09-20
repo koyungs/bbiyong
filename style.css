@@ -49,3 +49,7 @@
 @media(max-width:380px){#cj-extension>#cj-content{padding:10px}#cj-extension .cj-toggle-row{gap:7px;font-size:12px}#cj-extension .cj-field{font-size:12px;gap:8px;grid-template-columns:minmax(0,1fr) 65px}#cj-extension .cj-history{grid-template-columns:minmax(0,1fr) minmax(0,46%)}#cj-extension .cj-drawer-title small{font-size:11px}}
 
 #cj-extension .cj-symbol{width:20px;height:20px;flex-shrink:0;opacity:.78;vertical-align:middle}#cj-extension .menu_button .cj-symbol{width:15px;height:15px}
+
+#cj-extension #cj-guidance{display:block;width:calc(100% - 24px);margin:0 12px;min-width:0;box-sizing:border-box;resize:vertical;line-height:1.5;overflow-wrap:anywhere;}
+#cj-extension .cj-guidance-settings>.cj-caption{display:block;margin:10px 12px 6px;}
+#cj-extension .cj-guidance-settings>.cj-help{margin:10px 12px 12px;}

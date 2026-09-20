@@ -1,32 +1,33 @@
-# Character Judgment Universal 0.5.1
+# Character Judgment Universal 0.5.2-rc.2-structure
 
-SillyTavern의 현재 장면과 대상 캐릭터 카드를 읽고, 선택된 판단 결과를 해당 응답 생성에 한 번 전달하는 확장입니다. v0.5.0의 판단 기준, 분기, 난수 선택, Final 의미와 Universal lifecycle을 유지하며, priority 단계의 연결 참조 방식을 안정화했습니다.
+**공개배포용 Protected 구조 검수 후보판이며 stable 버전이 아닙니다.** rc.1의 프롬프트·판단 기준·호출 순서를 유지하고 실행 소유권, 취소, 일회용 Final 전달과 정리 오류를 수정했습니다. WI 실제 연결은 미완료입니다.
 
-## 설치
+현재 장면과 대상 카드에서 판단 재료를 찾아 원래 RP 생성에 실행별 Final 지시를 한 번 전달합니다. 본체 patch와 native bridge를 추가하지 않습니다.
 
-**Extensions → Install extension**에 다음 주소를 입력하세요.
+## 유지되는 기능
+
+- Stage 1B와 Priority 출력에서 TARGET CHARACTER 재출력을 제거했습니다. 실제 target ID·avatar·이름·원본 카드 검사는 코드가 유지합니다.
+- UI의 stage 4는 `F1 → ACTION DIRECTIONS → A1…`을 받습니다. 선택된 긴 subject는 모델이 다시 쓰지 않으며 코드는 자신의 선택 원문을 보존합니다.
+- 메인 탭의 **판단 지침**은 이 채팅에 저장합니다. 실행 시작 시 동결하여 Stage 1B, 행동 방향 단계와 Final에 보냅니다. Stage 1A나 Priority에 별도 직접 주입하지 않습니다. 다른 프리셋/확장 프롬프트를 자동 수집하지 않습니다.
+- 카드와 판단 지침의 `{{char}}`, `{{user}}`만 공식 ST API로 치환합니다. 현재 group target 이름을 명시합니다. 다른 매크로는 실행하지 않고 원문을 보존합니다. 이름 API가 없거나 검증에 실패하면 판단 없이 원래 응답으로 진행합니다.
+- 빈 이력/공백/참석 표기만 있는 이력은 호출 없이, Stage 1A가 `CURRENT SITUATION: NONE`을 반환한 경우는 1회 호출 후 판단을 건너뜁니다. 장면을 만들어내는 기능은 아닙니다.
+- reference의 `미연결`은 활성 WI 0개라는 뜻이 아닙니다. 현재 후보판은 실제 WI snapshot을 받지 못하므로 항상 미연결입니다.
+- 종료 상태는 `정상 종료 · 종료표식 확인` / `정상 종료 · 응답 끝 확인`으로 표시하며 raw enum은 진단에 유지합니다.
+
+## 유지하는 범위
+
+일반 Send, regenerate, swipe와 그룹의 현재 화자를 지원합니다. quiet, impersonate, Continue는 기존대로 CJ 판단을 생략합니다. nonempty 장면의 판단에는 3회 또는 4회의 내부 호출이 필요하며 원래 RP 생성 비용은 별도입니다. C# 완전성/중복 검사, subset/partial-overlap 구분, Barrier 제외, YES 전체 유지 및 Stage 4 우회, ALL NONE의 전체 scene fact와 action 코드 난수 선택은 유지합니다.
+
+오류·timeout·화자/장면/카드 변경에는 판단을 버리고 원래 생성으로 계속합니다. 실행 중 판단 지침 또는 사용자 이름이 바뀌어도 이전 결과를 버립니다. Stop·일회용 Final 소유권·토큰 공간 예약 구조는 유지합니다.
+
+## 설치와 배포 주의
+
+[INSTALL.md](INSTALL.md)를 따라 **한 벌만** 설치하세요. SillyTavern의 Install Extension에 다음 주소를 입력합니다.
 
 ```text
 https://github.com/koyungs/bbiyong.git
 ```
 
-설치 후 새로고침하고 확장 설정의 **[캐해] Character Judgment**에서 **이 채팅에서 활성화**를 켭니다. 기본값은 꺼짐입니다. 기존 Native판 또는 테스트판 Character Judgment가 설치되어 있다면 중복 실행되지 않도록 기존 확장을 끄거나 제거하고 하나만 사용하세요.
+이 공개 Protected 빌드는 prompt 문자열을 실행 시 복원하며 Terser 5.43.1로 코드를 축약·난독화했습니다. 소스맵과 개발용 원본, 평문 prompt 파일은 포함하지 않습니다. 암호화/DRM/실행 중 요청 은닉을 보장하지 않습니다. Plain-Test와 Private-Source는 평문 prompt가 있으므로 공개 저장소에 올리지 마세요.
 
-별도 본체 패치나 설치 스크립트가 필요하지 않습니다. PC, Launcher, Android/Termux에서 같은 확장 파일을 사용합니다. 현재 SillyTavern 연결과 모델을 사용하므로 판단 과정에서도 모델 호출 비용이 발생합니다.
-
-## 동작
-
-- 일반 Send, regenerate, swipe와 그룹의 현재 화자를 처리합니다. quiet, impersonate, Continue는 판단을 실행하지 않습니다.
-- PRIORITY YES이면 모든 YES를 유지하고 Stage 4를 건너뜁니다. 모두 NONE이면 현재 상황 전체에서 주제를 뽑은 뒤 Stage 4의 행동 방향을 뽑습니다. 카드 연결이 없으면 priority 단계를 건너뜁니다.
-- 판단에는 3회 또는 4회의 내부 모델 호출이 필요합니다. 원래 응답은 SillyTavern이 이어서 생성합니다.
-- 오류, timeout, 파싱 실패, 장면·화자 변경, 필요한 API 부재는 판단을 버리고 원래 응답으로 계속합니다. Stop은 현재 판단과 아직 전송 전인 Final을 무효화합니다.
-- `call` 탭에서 실행 결과를 확인합니다. 최근 16회 기록은 현재 페이지의 진단용이며 다음 판단에 재사용하지 않습니다.
-- 긴 연결 문장을 priority 출력에 다시 복사하지 않습니다. 코드가 연결 ID를 검증하고 원문을 복원하며, UI `stage 3`에서 모델 원문과 코드가 복원한 parsed 값을 구분합니다.
-
-## Universal의 범위
-
-Character Judgment는 SillyTavern의 공식 extension lifecycle 안에서 동작합니다. 사용자가 Stop을 누른 직후 다른 generation을 즉시 시작하는 극단적인 overlap에서는 **vanilla SillyTavern upstream cancellation race**로 이전 foreground 요청이 core 내부에서 재개될 수 있습니다. Character Judgment는 중단된 판단 결과와 Final을 이후 generation에 재사용하지 않으며, 원래 Generate를 다시 호출하지 않습니다. 이미 서버에 전송된 요청을 소급해서 취소할 수는 없습니다.
-
-이 공개판은 Protected runtime입니다. 보호 목적은 **casual prompt extraction resistance**이며, 암호화나 DRM이 아닙니다. 실행 중 요청 관찰이나 의도적인 역공학을 차단한다고 주장하지 않습니다.
-
-검증은 실제 upstream 함수와 모의 provider를 결합한 자동 테스트 및 브라우저 컴포넌트 테스트 범위입니다. 실제 모델/Gemini, Android/Termux 실기기, 전체 SillyTavern browser E2E까지 검증했다는 뜻은 아닙니다. 자세한 API 호환성과 제약은 [COMPATIBILITY.md](COMPATIBILITY.md), 설치 방법은 [INSTALL.md](INSTALL.md)를 보세요.
+자동 테스트는 선언한 모델 응답과 API mock, 보관된 upstream 함수, Chromium 컴포넌트를 사용합니다. 실제 모델 캐해 효과, 실제 provider 연결, ST Plus/Termux 실기기 및 전체 ST E2E를 검증한 것은 아닙니다. [COMPATIBILITY.md](COMPATIBILITY.md)를 확인하세요.

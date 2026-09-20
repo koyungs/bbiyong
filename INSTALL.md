@@ -1,11 +1,19 @@
-# 설치 및 업데이트
+# 설치 — 0.5.2-rc.2-structure
 
-1. SillyTavern에서 **Extensions → Install extension**을 엽니다.
-2. `https://github.com/koyungs/bbiyong.git`를 붙여넣고 설치합니다.
-3. 새로고침 후 채팅을 열고 **[캐해] Character Judgment → 이 채팅에서 활성화**를 켭니다.
+공개배포용 Protected 구조 검수 후보판입니다. stable 릴리스는 아닙니다.
 
-수동 설치는 이 저장소를 SillyTavern의 third-party extension 폴더에 clone합니다. `manifest.json`과 `index.js`는 clone한 디렉터리의 루트에 있어야 합니다. 본체 파일 교체, native bridge, Termux 패치 명령은 사용하지 않습니다.
+1. SillyTavern의 확장 기능 메뉴에서 Install Extension을 엽니다.
+2. 아래 주소를 입력해 설치합니다.
 
-업데이트는 SillyTavern 확장 관리 화면에서 실행하고 새로고침합니다. 기존 Native판/다른 Character Judgment 테스트판을 동시에 켜지 마세요. 기존 Native 설치를 제거하는 작업은 이 Universal 확장이 자동으로 수행하지 않습니다.
+```text
+https://github.com/koyungs/bbiyong.git
+```
 
-판단이 건너뛰어지면 `call` 탭의 상태와 현재 API 연결을 확인하세요. 기능이 없는 환경은 원래 응답으로 계속합니다. Windows/Android용 별도 빌드는 없습니다.
+3. SillyTavern 페이지를 새로고침하고 Character Judgment 버전이 `0.5.2-rc.2-structure`인지 확인합니다.
+4. 원하는 채팅에서 확장을 활성화합니다. 기존 설치가 있다면 확장 업데이트 기능을 사용하고 중복 설치하지 않습니다.
+
+저장소 루트에 manifest.json과 index.js가 직접 있습니다. 별도 native patch, installer, 본체 수정은 필요하지 않습니다.
+수동 ZIP 설치 시에도 압축 내부의 파일을 확장 폴더 바로 아래에 놓습니다.
+
+WI는 미연결입니다. normal/regenerate/swipe만 기존 지원 대상으로 유지하며 Continue/impersonate/quiet/unknown에는 판단을 추가하지 않았습니다.
+지원 환경과 검증 한계는 [COMPATIBILITY.md](COMPATIBILITY.md)를 참고하세요.
