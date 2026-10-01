@@ -1,12 +1,12 @@
 {
-  "display_name": "[캐해] Character Judgment · 0.5.2-rc.2-structure",
+  "display_name": "Character Judgment · 0.6.0-rc.7",
   "loading_order": 95,
   "requires": [],
   "optional": [],
   "js": "index.js",
   "css": "style.css",
   "author": "Character Judgment",
-  "version": "0.5.2-rc.2-structure",
+  "version": "0.6.0-rc.7",
   "auto_update": false,
   "generate_interceptor": "characterJudgmentInterceptor",
   "homePage": "https://github.com/koyungs/bbiyong"

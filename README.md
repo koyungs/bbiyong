@@ -1,33 +1,42 @@
-# Character Judgment Universal 0.5.2-rc.2-structure
+# Character Judgment · 0.6.0-rc.7
 
-**공개배포용 Protected 구조 검수 후보판이며 stable 버전이 아닙니다.** rc.1의 프롬프트·판단 기준·호출 순서를 유지하고 실행 소유권, 취소, 일회용 Final 전달과 정리 오류를 수정했습니다. WI 실제 연결은 미완료입니다.
+사용자 소유 **CJ · Engine**을 기존 RP preset에 삽입하는 구조 후보입니다. 설치 주소: https://github.com/koyungs/bbiyong.git
 
-현재 장면과 대상 카드에서 판단 재료를 찾아 원래 RP 생성에 실행별 Final 지시를 한 번 전달합니다. 본체 patch와 native bridge를 추가하지 않습니다.
+로컬 검수 패키지이며 GitHub 게시본과 같다고 가정하지 마세요. ZIP의 manifest.json과 index.js는 확장 폴더 바로 아래에 둡니다.
 
-## 유지되는 기능
+rc.7은 그룹 생성 완료 뒤 현재 캐릭터 선택이 초기화되어도 생성 당시의 실제 avatar로 C/Snapshot을 확인하는 수정입니다. 같은 이름의 다른 멤버로 대상을 추정하지 않으며, 응답의 native avatar가 맞을 때만 Final과 Snapshot을 저장합니다. Engine 본문과 첫 action 선택 계약은 rc.6과 같습니다.
 
-- Stage 1B와 Priority 출력에서 TARGET CHARACTER 재출력을 제거했습니다. 실제 target ID·avatar·이름·원본 카드 검사는 코드가 유지합니다.
-- UI의 stage 4는 `F1 → ACTION DIRECTIONS → A1…`을 받습니다. 선택된 긴 subject는 모델이 다시 쓰지 않으며 코드는 자신의 선택 원문을 보존합니다.
-- 메인 탭의 **판단 지침**은 이 채팅에 저장합니다. 실행 시작 시 동결하여 Stage 1B, 행동 방향 단계와 Final에 보냅니다. Stage 1A나 Priority에 별도 직접 주입하지 않습니다. 다른 프리셋/확장 프롬프트를 자동 수집하지 않습니다.
-- 카드와 판단 지침의 `{{char}}`, `{{user}}`만 공식 ST API로 치환합니다. 현재 group target 이름을 명시합니다. 다른 매크로는 실행하지 않고 원문을 보존합니다. 이름 API가 없거나 검증에 실패하면 판단 없이 원래 응답으로 진행합니다.
-- 빈 이력/공백/참석 표기만 있는 이력은 호출 없이, Stage 1A가 `CURRENT SITUATION: NONE`을 반환한 경우는 1회 호출 후 판단을 건너뜁니다. 장면을 만들어내는 기능은 아닙니다.
-- reference의 `미연결`은 활성 WI 0개라는 뜻이 아닙니다. 현재 후보판은 실제 WI snapshot을 받지 못하므로 항상 미연결입니다.
-- 종료 상태는 `정상 종료 · 종료표식 확인` / `정상 종료 · 응답 끝 확인`으로 표시하며 raw enum은 진단에 유지합니다.
+1. Chat Completion 연결에서 사용할 채팅을 엽니다.
+2. **7개 CJ entry 가져오기**, **검사**를 실행합니다. 기존 Engine 본문은 그대로 보존됩니다.
+3. Prompt Manager에서 **CJ · Engine**을 편집합니다. 기존 `CJ · Run`과 같은 stable identifier입니다. 구형 macro-only Run은 자동 덮어쓰지 않으므로, 본인 Engine을 넣거나 **Engine 기본값으로 교체 (현재 본문 덮어쓰기)**를 명시적으로 실행하세요.
+4. **캐릭터 카드 인덱싱**은 0 model calls입니다. **현재 채팅 인덱싱**은 M/L maintenance 요청 1회입니다. **이 채팅에서 활성화**를 켜면 Normal/Regenerate는 native completion 1회로 실행합니다.
+5. W 목록의 **캐릭터 정보 / 세계관 정보 / 자동**을 사용합니다. MANUAL은 0 calls, AUTO 분류는 미분류·stale 항목에 maintenance 요청 1회입니다. 자동 retry는 없습니다.
 
-## 유지하는 범위
+Engine이 없을 때 생성되는 기본값은 rc.4 의미 문안에 firstSelection 주소 호환만 추가한 **이행용 기본값**입니다. 사용자의 최신 QR Stage 1A → 1B-A → 1B-B → 2 → 3 → Selection → resolved_execution → Final 확정본을 대신 설계한 문안이 아닙니다. 최종 문안은 Engine 하나에 넣습니다. Stage별 entry는 만들지 않습니다.
 
-일반 Send, regenerate, swipe와 그룹의 현재 화자를 지원합니다. quiet, impersonate, Continue는 기존대로 CJ 판단을 생략합니다. nonempty 장면의 판단에는 3회 또는 4회의 내부 호출이 필요하며 원래 RP 생성 비용은 별도입니다. C# 완전성/중복 검사, subset/partial-overlap 구분, Barrier 제외, YES 전체 유지 및 Stage 4 우회, ALL NONE의 전체 scene fact와 action 코드 난수 선택은 유지합니다.
+| 구분 | 소유권 |
+| --- | --- |
+| CJ · Core | 확장: `<cj_runtime>` mode, nonce, Normal firstSelection, Swipe selection, snapshot 주소 |
+| Sheet/Story Open·Close | 확장: native source 배치 경계 |
+| CJ · Engine (기존 Run ID) | 사용자: Normal/Swipe/Final 판단 의미 전체 |
+| CJ · Final Handoff | 확장: nonce, JSON schema, output envelope |
 
-오류·timeout·화자/장면/카드 변경에는 판단을 버리고 원래 생성으로 계속합니다. 실행 중 판단 지침 또는 사용자 이름이 바뀌어도 이전 결과를 버립니다. Stop·일회용 Final 소유권·토큰 공간 예약 구조는 유지합니다.
+확장은 Engine의 자연어를 읽고 Stage 의미를 검증하지 않습니다. ID·활성·role·Relative 위치·trigger·순서만 검사하며 빈 본문/구형 slot은 안내합니다. 사용자가 수정한 본문은 요청·가져오기·업데이트에서 보존합니다. 명시적인 기본값 교체 버튼만 현재 본문을 바꿉니다. Engine 수정 후에는 이전 Snapshot으로 Swipe하지 않고 새 Normal이 필요합니다.
 
-## 설치와 배포 주의
+Native Prompt Manager가 만드는 요청 사본에서만 Engine 경계가 추가됩니다. 비활성·잘못된 배치·Continue·Impersonate·quiet 경로에서는 Engine을 macro 확장 전에 제외합니다. 저장된 Engine 본문이나 다른 preset entry를 고쳐서 처리하지 않습니다. 지원한 native 준비 API를 확인할 수 없으면 실행을 승인하지 않습니다.
 
-[INSTALL.md](INSTALL.md)를 따라 **한 벌만** 설치하세요. SillyTavern의 Install Extension에 다음 주소를 입력합니다.
+**SOURCE ID = ADDRESS / NOT SUMMARY.** C는 avatar 기준 공유 카드 registry, M/L과 currentSnapshot은 채팅별, W는 `(world, uid)` 기준 공유 registry입니다. C/W 원문 수정은 stale 및 새 binding으로 처리하며 기존 immutable ID를 바뀐 원문에 재연결하지 않습니다. 기존 카드 공유/rename/migration 계약은 rc.4와 같습니다.
 
-```text
-https://github.com/koyungs/bbiyong.git
-```
+원문은 별도 block으로 복제하지 않습니다. 원래 Card/WI/Chat 위치에 C/W/M/L 태그를 붙입니다. 위치나 예산을 확정하지 못하면 CJ를 생략하고 native 생성을 계속합니다. Engine 본문은 source annotation 대상에서 제외합니다.
 
-이 공개 Protected 빌드는 prompt 문자열을 실행 시 복원하며 Terser 5.43.1로 코드를 축약·난독화했습니다. 소스맵과 개발용 원본, 평문 prompt 파일은 포함하지 않습니다. 암호화/DRM/실행 중 요청 은닉을 보장하지 않습니다. Plain-Test와 Private-Source는 평문 prompt가 있으므로 공개 저장소에 올리지 마세요.
+M/L maintenance는 CHARACTER_SUBJECT span, W AUTO는 CHARACTER/WORLD role까지만 판단합니다. 현재 relevance·condition·BARRIER·priority·action·Final 판단은 Normal Engine 소유입니다. Maintenance 요청은 기존 독립 transport로 고정 task + source + schema만 보냅니다. 사용자 RP preset을 판단 기준으로 사용하지 않습니다.
 
-자동 테스트는 선언한 모델 응답과 API mock, 보관된 upstream 함수, Chromium 컴포넌트를 사용합니다. 실제 모델 캐해 효과, 실제 provider 연결, ST Plus/Termux 실기기 및 전체 ST E2E를 검증한 것은 아닙니다. [COMPATIBILITY.md](COMPATIBILITY.md)를 확인하세요.
+Normal/Regenerate는 요청 전에 확장 JS가 S1을 고정하고 secure RNG로 A1~A4 주소 하나를 미리 선택합니다. `cj_runtime.firstSelection`의 `subjectSlot`/`actionSlot`을 Engine이 읽어 네 후보를 모두 만든 뒤 지정 주소를 resolve해야 합니다. 응답의 선택 ID가 다르면 보정 없이 구조 오류로 처리하며 L/Snapshot을 저장하지 않습니다. Swipe는 frozen Snapshot에서 기존 YES 우선 pool 및 외부 RNG로 재선택하고, 확정된 subject/action과 sourceRefs만 runtime data로 보냅니다. 전체 pipeline 재실행 여부의 의미 지시는 Engine이 소유합니다. Continue는 native continuation을 유지하며 Snapshot을 폐기합니다.
+
+응답은 기존 `cj_result` JSON + `cj_final` prose(또는 Swipe의 final only)를 사용합니다. 같은 nonce의 `cj_internal`을 앞에 하나 둘 수 있으며 내용은 해석·보관하지 않습니다. **완료된 응답이 검증에 성공한 뒤 final만 저장**합니다. 외부의 완결된 think/thinking/reasoning/reflection block과 단일 code fence는 형식 정규화 대상입니다. JSON 문자열·Final 내부 태그는 건드리지 않습니다. 없는 ID나 의미를 보정하지 않습니다.
+
+Protected는 casual-analysis 난독화입니다. Engine은 의도적으로 사용자에게 편집 가능한 평문으로 Prompt Manager에 설치되므로 그 본문을 비밀로 보장하지 않습니다. 공개 ZIP에 private source, 테스트 자료, source map, API key는 포함하지 않습니다.
+
+Normal은 **pre-call RNG**입니다. 모델은 후보를 생성하는 동안 미리 선택된 주소를 볼 수 있습니다. 후보 생성 완료 후 확장이 completion 중간에 개입하는 방식이 아닙니다. Swipe는 이미 저장된 후보를 대상으로 하는 **post-Snapshot RNG**입니다. 첫 Normal의 priority 정렬은 사용자 Engine의 책임이며 확장은 priority를 다시 판단하거나 정렬하지 않습니다.
+
+[설치](INSTALL.md) · [검증 범위와 제한](COMPATIBILITY.md)
