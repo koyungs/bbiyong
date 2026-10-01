@@ -1,10 +1,16 @@
-# Character Judgment · 0.6.0-rc.7 — 일반판
+# Character Judgment · 0.6.0-rc.8 — 일반판
 
-사용자 소유 **CJ · Engine**을 기존 RP preset에 삽입하는 구조 후보입니다. 설치 주소: https://github.com/koyungs/bbiyong.git
+사용자 소유 **CJ · Engine**을 기존 RP preset에 삽입하는 구조 후보입니다. Install Extension 주소: [https://github.com/koyungs/bbiyong.git](https://github.com/koyungs/bbiyong.git).
 
-이 저장소는 난독화 없는 rc.7 일반판입니다. 런타임 코드와 기본 프롬프트를 평문으로 공개합니다. manifest.json과 index.js는 저장소 루트에 있으며 위 설치 주소를 SillyTavern의 Install Extension에 그대로 입력합니다.
+이 배포 파일은 난독화 없는 rc.8 일반판입니다. 런타임 코드와 기본 프롬프트를 평문으로 제공합니다. manifest.json과 index.js는 배포 루트에 있습니다. 저장소 설치 주소와 ZIP 설치 방법은 [설치 안내](INSTALL.md)를 확인하세요.
 
-rc.7은 그룹 생성 완료 뒤 현재 캐릭터 선택이 초기화되어도 생성 당시의 실제 avatar로 C/Snapshot을 확인하는 수정입니다. 같은 이름의 다른 멤버로 대상을 추정하지 않으며, 응답의 native avatar가 맞을 때만 Final과 Snapshot을 저장합니다. Engine 본문과 첫 action 선택 계약은 rc.6과 같습니다.
+rc.8은 원문·카드·출력 binding이 그대로인 `MESSAGE_UPDATED` / `MESSAGE_EDITED` / `CHARACTER_EDITED` 알림만으로 유효한 Snapshot이 사라지는 결함을 수정합니다. 실제 입력·Final·카드 변경, 기존 Swipe 선택, Continue와 삭제의 무효화 검사는 유지합니다. 그룹 대상은 rc.7의 실제 native avatar binding을 따릅니다. Engine 문안·분류·parser·Normal/Swipe RNG 계약은 바꾸지 않습니다.
+
+구조 debug에는 마지막 commit·무효화 이유·확인 phase·현재 채팅/metadata/state 참조와 binding 검사 boolean을 제한된 크기로 표시합니다. 최근 한 건의 `requestTrace`에는 nonce·mode·firstSelection·요구된/반환된 M ID와 개수·검증 단계·실패 이유만 표시합니다. `stage1AFailure`는 Stage 1A source binding 검증이 실패한 최근 한 건의 nonce·mode·실제 required M ID·반환 M ID·반환 schemaVersion 값/타입·messages 배열 여부·실패 이유를 남깁니다. schemaVersion 문자열은 최대 64자와 잘림 표시로 제한합니다. 다음 성공 뒤에도 실패 기록의 nonce를 유지하고 다음 같은 검증 실패로 교체합니다. reload/dispose 시 초기화하며 history는 만들지 않습니다. 구조 진단에 원문·후보 공간·응답 body·internal history를 넣지 않습니다.
+
+**최근 요청 보기**를 누르면 CJ annotation과 slot 제거가 끝난 시점의 프런트엔드 messages 사본 한 개를 읽기 전용으로 확인할 수 있습니다. 사본은 role/name/content의 텍스트만 포함하고 이미지·임의 필드·키·헤더·연결 설정을 수집하지 않습니다. Engine/runtime/source annotation을 확인하는 준비 단계 사본이며 **실제 HTTP 전송 증명이 아닙니다**. 구조 진단과 요청 사본은 메모리에만 유지합니다. 새 CJ 요청이 준비되면 최근 요청 사본이 교체되고, 페이지를 다시 불러오면 초기화됩니다. 파일·chat metadata·internal history에는 추가 저장하지 않습니다.
+
+현재 요청 nonce가 맞는 응답의 parser·firstSelection·Stage 1A M binding·sourceRefs 내용 검증이 실패하면 `cancel()`이 native Itemization의 공유 요청 객체에서 Engine/runtime/annotation을 지우지 않도록 수정했습니다. 응답 도착 전 취소와 `response-ownership` / `source-state` 실패는 기존 cleanup을 유지합니다. 원문·Card·World·Engine의 ownership/stale 검사 실패가 이 예외에 해당하며, 후반 WI fingerprint·world-role 변경도 포함합니다. 독립된 최근 요청 사본은 모든 cleanup 경로에서 바뀌지 않습니다. 실제 사용자 환경에서 Snapshot을 지운 최초 이벤트는 아직 확인되지 않았습니다. native `updateMessageBlock()` 자체는 메시지 변경 이벤트를 emit하지 않습니다. 이번 수정은 로컬 재현과 고정 native 함수 fixture로 확인하며 rc.8의 실제 provider/서버 생성은 별도 검증 대상입니다.
 
 1. Chat Completion 연결에서 사용할 채팅을 엽니다.
 2. **7개 CJ entry 가져오기**, **검사**를 실행합니다. 기존 Engine 본문은 그대로 보존됩니다.

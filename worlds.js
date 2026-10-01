@@ -2,6 +2,7 @@ import { digest, identity, stateFor } from './state.js';
 import { createTransport } from './transport.js';
 import { normalizeSyntax, enumValue } from './syntax.js';
 import { worldClassificationPrompt } from './prompts.js';
+import { invalidateSnapshot } from './snapshot-trace.js';
 export const WORLD_KEY='character_judgment_worlds_v1';
 export const worldKey=(world,uid)=>JSON.stringify([world,String(uid)]);
 export function worldRegistry(c) {
@@ -11,7 +12,7 @@ export function worldRegistry(c) {
     return r;
 }
 const save=async c=>{if(typeof c.saveSettingsDebounced!=='function')throw Error('WI registry 저장 API가 없습니다.');await c.saveSettingsDebounced();};
-const invalidate=c=>{try{stateFor(c).currentSnapshot=null;}catch{}};
+const invalidate=(c,reason,event)=>{try{invalidateSnapshot(c,{reason,event,checks:{worldBinding:false}});}catch{}};
 function register(c,world,uid,fingerprint,label='') {
     const r=worldRegistry(c),key=worldKey(world,uid);
     let row=r.entries[key];
@@ -74,7 +75,7 @@ export function createWorldManager({getContext,transportFactory=createTransport,
         if(!s)throw Error('WI source가 삭제되었습니다.');
         if(!['CHARACTER','WORLD','AUTO'].includes(value))throw Error('WI role 오류');
         accept(c,s.metadata,s.fingerprint,value==='AUTO'?null:value,value==='AUTO'?'AUTO':'MANUAL');
-        invalidate(c);await save(c);onUpdate();return s.metadata;
+        invalidate(c,'world-source-role-changed','WORLD_ROLE_SET');await save(c);onUpdate();return s.metadata;
     }
     async function classify(world){
         cancel();const c=getContext(),chat=identity(c),connection=JSON.stringify(c.chatCompletionSettings),op={controller:new AbortController()};active=op;
@@ -97,7 +98,7 @@ export function createWorldManager({getContext,transportFactory=createTransport,
                 changes.push({now,role:roles[i]});
             }
             for(const {now,role}of changes)accept(c,now.metadata,now.fingerprint,role,'AUTO');
-            if(changes.length)invalidate(c);await save(c);return{classified:changes.length,calls:1};
+            if(changes.length)invalidate(c,'world-source-classification-changed','WORLD_CLASSIFIED');await save(c);return{classified:changes.length,calls:1};
         }finally{clearTimeout(timer);if(active===op)active=null;onUpdate();}
     }
     return{list,setRole,classify,cancel,get active(){return Boolean(active);}};

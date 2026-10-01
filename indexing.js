@@ -3,6 +3,7 @@ import { synchronizeMessages, synchronizeCard } from './source-index.js';
 import { createTransport } from './transport.js';
 import { indexingPrompt } from './prompts.js';
 import { normalizeSyntax, enumValue } from './syntax.js';
+import { invalidateSnapshot } from './snapshot-trace.js';
 
 export function validateBindings(raw, sources) {
     const data = typeof raw === 'string' ? JSON.parse(normalizeSyntax(raw)) : raw;
@@ -56,7 +57,7 @@ export function createIndexer({ getContext, transportFactory = createTransport, 
                 if (!getContext().chat.includes(selected[i].message) || await messageFingerprint(selected[i].message) !== hashes[i]) throw Error('인덱싱 중 원문 변경: 결과 전체를 폐기합니다.');
             }
             check();
-            if (selected.some((x,i)=>x.entry.fingerprint!==hashes[i]||JSON.stringify(x.entry.spans)!==JSON.stringify(parsed[i].spans))) stateFor(c).currentSnapshot=null;
+            if (selected.some((x,i)=>x.entry.fingerprint!==hashes[i]||JSON.stringify(x.entry.spans)!==JSON.stringify(parsed[i].spans))) invalidateSnapshot(c,{reason:'message-source-bindings-changed',event:'MANUAL_MESSAGE_INDEX',checks:{sourceBindings:false}});
             for(let i=0;i<selected.length;i++) Object.assign(selected[i].entry,{spans:parsed[i].spans,indexed:true,status:'fresh',fingerprint:hashes[i],currentFingerprint:hashes[i],sourceSpeaker:sources[i].sourceSpeaker});
             await persist(c,{chat:true}); return { indexed:selected.length,calls:1 };
         } finally { clearTimeout(timer); if(active===op)active=null; onUpdate(); }

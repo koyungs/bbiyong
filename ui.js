@@ -2,8 +2,9 @@ import { VERSION, stateFor, persist } from './state.js';
 import { sourceCounts } from './source-index.js';
 import { validateOrder, readManager, createImport, ENTRY, entries } from './prompt-order.js';
 import { worldRegistry } from './worlds.js';
+import { invalidateSnapshot } from './snapshot-trace.js';
 export function mountUI({ getContext, runtime, indexer, worlds }) {
-    let panel, busy=false, orderResult='검사 전', message='', worldRows=[], worldBook='',worldChat='';
+    let panel, busy=false, orderResult='검사 전', message='', worldRows=[], worldBook='',worldChat='',displayedRequestNonce=null;
     async function task(fn) { if(busy)return;busy=true;render();try{message=await fn()??'완료';}catch(e){message=e.message;}finally{busy=false;render();} }
     function render() {
         if(!panel) {
@@ -16,7 +17,8 @@ export function mountUI({ getContext, runtime, indexer, worlds }) {
 <fieldset><legend>Prompt Order</legend><div class="cj-buttons"><button type="button" id="cj-order-check">검사</button><button type="button" id="cj-entries">7개 CJ entry 가져오기</button></div><p>가져오기는 기존 Engine 본문을 보존합니다. CJ · Engine은 Prompt Manager에서 직접 편집하세요.</p><button type="button" id="cj-engine-default">Engine 기본값으로 교체 (현재 본문 덮어쓰기)</button><pre id="cj-order-result"></pre></fieldset>
 <fieldset><legend>Snapshot</legend><pre id="cj-snapshot"></pre></fieldset><p id="cj-status" role="status"></p>
 <fieldset><legend>WI / Lorebook source role</legend><label>책 <select id="cj-world-book" aria-label="WI 책"></select></label><div class="cj-buttons"><button type="button" id="cj-world-load">목록 새로고침</button><button type="button" id="cj-world-auto">미분류 / stale Auto 분류</button></div><p>캐릭터 정보 / 세계관 정보 선택은 즉시 수동 저장합니다. 자동은 Auto 대상으로 전환하며, 분류 버튼을 눌렀을 때만 모델을 호출합니다. Manual은 Auto가 덮어쓰지 않습니다. Stale 원문은 다시 확인하세요.</p><div id="cj-world-rows"></div></fieldset>
-<details><summary>구조 debug</summary><pre id="cj-debug"></pre></details>`;
+<details><summary>구조 debug</summary><pre id="cj-debug"></pre></details>
+<details><summary>최근 CJ 요청 messages · 읽기 전용</summary><p>최근 요청 한 건의 CJ annotation 완료 후 프런트엔드 텍스트 사본입니다. HTTP 전송 증명은 아니며 새 요청이나 reload 시 교체됩니다. 키·헤더·연결 설정은 포함하지 않습니다.</p><button type="button" id="cj-request-show">최근 요청 보기</button><pre id="cj-request-messages"></pre></details>`;
             host.append(panel);
             panel.querySelector('#cj-enabled').addEventListener('change',event=>{const enabled=event.target.checked;return task(async()=>{const c=getContext();stateFor(c).settings.enabled=enabled;if(!enabled){runtime.cancel('disabled');indexer.cancel();}await persist(c);return '설정 저장';});});
             panel.querySelector('#cj-index-chat').addEventListener('click',()=>task(async()=>{runtime.cancel('manual-indexing');const r=await indexer.indexMessages();return `M/L ${r.indexed}개 저장 · 모델 요청 ${r.calls}회`;}));
@@ -25,7 +27,11 @@ export function mountUI({ getContext, runtime, indexer, worlds }) {
             panel.querySelector('#cj-cancel').addEventListener('click',()=>{indexer.cancel();worlds.cancel();message='maintenance 취소';render();});
             panel.querySelector('#cj-order-check').addEventListener('click',()=>task(async()=>{const r=validateOrder(readManager(await runtime.getManager()));orderResult=r.ok?'✓ 정상':r.errors.map(x=>'[ERROR] '+x.text).join('\n\n');return '순서 검사 완료';}));
             panel.querySelector('#cj-entries').addEventListener('click',()=>task(async()=>{const manager=await runtime.getManager();if(typeof manager?.import!=='function')throw Error('Prompt Manager import API를 확인할 수 없습니다.');manager.import(createImport(readManager(manager)));const r=validateOrder(readManager(manager));orderResult=r.ok?'✓ 정상':r.errors.map(x=>x.text).join('\n');return 'CJ entry 등록';}));
-            panel.querySelector('#cj-engine-default').addEventListener('click',()=>task(async()=>{runtime.cancel('engine-default-replacement');const manager=await runtime.getManager();const data=createImport(readManager(manager));data.data.prompts=data.data.prompts.map(p=>p.identifier===ENTRY.run?entries().find(x=>x.identifier===ENTRY.run):p);manager.import(data);stateFor(getContext()).currentSnapshot=null;await persist(getContext());return 'Engine을 rc.4 이행 기본값으로 교체했습니다. 최종 의미 프롬프트는 사용자가 확정합니다.';}));
+            panel.querySelector('#cj-engine-default').addEventListener('click',()=>task(async()=>{runtime.cancel('engine-default-replacement');const manager=await runtime.getManager();const data=createImport(readManager(manager));data.data.prompts=data.data.prompts.map(p=>p.identifier===ENTRY.run?entries().find(x=>x.identifier===ENTRY.run):p);manager.import(data);invalidateSnapshot(getContext(),{reason:'engine-default-replaced',event:'ENGINE_DEFAULT_REPLACED'});await persist(getContext());return 'Engine을 rc.4 이행 기본값으로 교체했습니다. 최종 의미 프롬프트는 사용자가 확정합니다.';}));
+            panel.querySelector('#cj-request-show').addEventListener('click',()=>{
+                const request=runtime.requestMessages();displayedRequestNonce=request?.nonce??null;
+                panel.querySelector('#cj-request-messages').textContent=request?JSON.stringify(request,null,2):'annotation이 완료된 최근 요청이 없습니다.';
+            });
             const loadWorld=async()=>{worldBook=panel.querySelector('#cj-world-book').value;if(!worldBook)throw Error('WI 책을 선택하세요.');worldRows=await worlds.list(worldBook);};
             panel.querySelector('#cj-world-load').addEventListener('click',()=>task(async()=>{await loadWorld();return `WI ${worldRows.length}개 · native source 읽기`; }));
             panel.querySelector('#cj-world-book').addEventListener('change',()=>{worldRows=[];worldBook='';render();});
@@ -57,6 +63,7 @@ export function mountUI({ getContext, runtime, indexer, worlds }) {
         const s=state.currentSnapshot;
         panel.querySelector('#cj-snapshot').textContent=s?`현재 Snapshot: 있음\nSubjects: ${s.subjects.length}\nSelected: ${s.selectedSubjectId} / ${s.selectedActionId}`:'현재 Snapshot: 없음';
         const diagnostic=runtime.diagnostics();panel.querySelector('#cj-status').textContent=[busy?'작업 중':message,diagnostic.status,diagnostic.error].filter(Boolean).join('\n');
+        if(displayedRequestNonce!==diagnostic.requestTrace?.nonce){panel.querySelector('#cj-request-messages').textContent='';displayedRequestNonce=null;}
         panel.querySelector('#cj-debug').textContent=JSON.stringify({schemaVersion:state.schemaVersion,sourceCounts:counts,runtime:diagnostic,snapshot:s?{chatId:s.chatId,sourceTurnAnchor:s.sourceTurnAnchor,createdAt:s.createdAt,sourceFingerprint:s.sourceFingerprint}:null},null,2);
     }
     return {render};

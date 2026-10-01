@@ -1,4 +1,5 @@
 import { digest, target, stateFor, persist } from './state.js';
+import { invalidateSnapshot } from './snapshot-trace.js';
 
 // ST exposes avatar filenames as account-local card identities, including group
 // member references. characterId is only an array offset; names are not keys.
@@ -71,11 +72,11 @@ function migrate(c, registry) {
         }
     }
     delete index.cards; delete index.cardRevisions; delete index.nextC;
-    state.currentSnapshot = null;
+    invalidateSnapshot(c,{reason:'legacy-card-migration',event:'CARD_LEGACY_MIGRATION'});
     return true;
 }
 
-export async function synchronizeCard(c, accept = false, { check = () => {} } = {}) {
+export async function synchronizeCard(c, accept = false, { check = () => {}, event = 'CARD_SOURCE_SYNC', messageId = null, expectedSnapshot } = {}) {
     const card = target(c), captured = sourceShape(card);
     if (c.characters[c.characterId].shallow) throw Error('Card 원문이 아직 로드되지 않았습니다. 캐릭터를 연 뒤 다시 인덱싱하세요.');
     if (typeof c.saveSettingsDebounced !== 'function') throw Error('Card registry 저장 API가 없습니다.');
@@ -116,8 +117,9 @@ export async function synchronizeCard(c, accept = false, { check = () => {} } = 
             row.entries = fresh; row.revision = revision; row.status = 'fresh'; row.indexedAt = new Date().toISOString();
         }
     }
-    const invalidated = state.currentSnapshot && state.currentSnapshot.cardBindingSignature !== cardSignature(c);
-    if (invalidated) state.currentSnapshot = null;
+    const invalidated = state.currentSnapshot && (expectedSnapshot === undefined || state.currentSnapshot === expectedSnapshot) &&
+        state.currentSnapshot.cardBindingSignature !== cardSignature(c);
+    if (invalidated) invalidateSnapshot(c,{reason:'card-binding-signature-mismatch',event,messageId,expected:expectedSnapshot,checks:{cardBinding:false}});
     const result = row.status === 'fresh' ? parts.map(p => ({ entry:Object.values(row.entries).find(e => e.field === p.field && e.ordinal === p.ordinal), text:p.text })) : [];
     if (JSON.stringify(registry) !== before) await save(c);
     if (migrated || invalidated) await persist(c);
@@ -132,7 +134,7 @@ export async function renameCard(c, oldAvatar, newAvatar) {
     if (oldKey === newKey || !r.cards[oldKey]) return;
     if (r.cards[newKey]) {
         for (const key of [oldKey,newKey]) { r.cards[key].status='stale'; for (const e of Object.values(r.cards[key].entries)) e.status='stale'; }
-        stateFor(c).currentSnapshot=null; await save(c); await persist(c);
+        invalidateSnapshot(c,{reason:'card-rename-conflict',event:'CHARACTER_RENAMED'}); await save(c); await persist(c);
         throw Error('Card rename registry 충돌: 기존 C binding을 병합하지 않습니다. 새 카드를 확인하고 재인덱싱하세요.');
     }
     const row = r.cards[oldKey]; delete r.cards[oldKey]; r.cards[newKey] = row;
@@ -140,6 +142,6 @@ export async function renameCard(c, oldAvatar, newAvatar) {
     if (!r.legacyRetiredKeys.includes(oldKey)) r.legacyRetiredKeys.push(oldKey);
     row.cardKey = newKey; row.avatar = newAvatar;
     for (const e of Object.values(row.entries)) e.avatar = newAvatar;
-    stateFor(c).currentSnapshot = null;
+    invalidateSnapshot(c,{reason:'card-renamed',event:'CHARACTER_RENAMED'});
     await save(c); await persist(c);
 }

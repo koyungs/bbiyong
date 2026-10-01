@@ -1,4 +1,4 @@
-export const VERSION = '0.6.0-rc.7';
+export const VERSION = '0.6.0-rc.8';
 export const STORAGE_KEY = 'character_judgment_v2';
 export const ANCHOR_KEY = 'cj_source_anchor_v1';
 export const SCHEMA_VERSION = 1;
