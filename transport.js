@@ -1,1 +1,89 @@
-import{normalizeSyntax as t}from"./syntax.js";import{JudgmentError as e}from"./errors.js";import{getEvents as n,listen as o,token as i}from"./compatibility.js";const r=()=>import("../../../openai.js");export function completionText(e){const n="string"==typeof e?e:"string"==typeof(o=e?.choices?.[0]?.message?.content??e?.choices?.[0]?.text??e?.content??e?.text??e?.message?.content)?o:Array.isArray(o)?o.filter(t=>t&&!t.thought&&(!t.type||"text"===t.type||"output_text"===t.type)).map(t=>"string"==typeof t.text?t.text:"").join("\n\n"):"";var o;return t(n)}export function createTransport(t,s=r){const p=t.chatCompletionSettings?structuredClone(t.chatCompletionSettings):null,c={source:p?.chat_completion_source??t.mainApi,model:null,maxTokens:p?.openai_max_tokens,type:"quiet",streaming:!1,adapter:"preparing"};let u;return{info:c,async request(r,f,m,l=()=>{}){const h=()=>{if(m(),f.aborted)throw f.reason};if(h(),"openai"===t.mainApi&&p&&"function"==typeof t.ChatCompletionService?.sendRequest){u??=await s().catch(()=>({})),h();const{getChatCompletionModel:n,createGenerationParameters:o}=u;if("function"==typeof n&&"function"==typeof o){const i=n(p);c.model=i,c.adapter="abortable-public-request";const{generate_data:a}=await o(p,i,"quiet",[{role:"user",content:r}]);if(h(),!a||a.stream||a.n&&1!==a.n)throw new e("unsupported-api","quiet 요청 형식이 예상과 다릅니다.");const s=await t.ChatCompletionService.sendRequest(a,!1,f);return h(),l({finishReason:s?.choices?.[0]?.finish_reason??null}),completionText(s)}}return c.adapter="official-generateRaw",async function(t,r,s,p,c){const u=t.generateRawData,f=t.generateRaw;if("function"!=typeof u&&"function"!=typeof f)throw new e("unsupported-api","공식 generateRaw API를 사용할 수 없습니다.");if(!["openai","textgenerationwebui"].includes(t.mainApi)&&"function"!=typeof u)throw new e("unsupported-api","이 연결의 독립 입력 hook을 확인할 수 없어 판단을 건너뜁니다.");const m=n(t),l="openai"===t.mainApi?["CHAT_COMPLETION_PROMPT_READY","CHAT_COMPLETION_SETTINGS_READY"]:["GENERATE_AFTER_COMBINE_PROMPTS","TEXT_COMPLETION_SETTINGS_READY"];if(!l.some(t=>m[t]))throw new e("unsupported-api","독립 Stage 요청 hook을 사용할 수 없습니다.");const h=i("STAGE",++a);let y=!1;const d=t=>{if(y)return;const e=t?.chat??t?.messages;if(Array.isArray(e)){if(1!==e.length||"string"!=typeof e[0]?.content||!e[0].content.includes(h))return;try{p()}catch{return void(e[0].content="")}e[0].content=r,y=!0}else if("string"==typeof t?.prompt&&t.prompt.includes(h)){try{p()}catch{return void(t.prompt="")}t.prompt=r,y=!0}},g=l.map(e=>o(t,e,d)),w=()=>{for(const t of g)t()};s.addEventListener("abort",w,{once:!0});try{p();const n={prompt:h,api:t.mainApi,instructOverride:!0,trimNames:!1},o="function"==typeof u?await u(n):f.length>=2?await f(h,t.mainApi,!0,!1,"",null,!1):await f(n);if(p(),!y)throw new e("unsupported-api","독립 Stage 입력을 확인하지 못해 결과를 폐기합니다.");return c({finishReason:"object"==typeof o?o?.choices?.[0]?.finish_reason??null:null}),completionText("novel"===t.mainApi?o?.output??o:o?.results?.[0]?.text??o)}finally{s.removeEventListener("abort",w),w()}}(t,r,f,h,l)}}}let a=0;
+import { normalizeSyntax } from './syntax.js';
+import { JudgmentError } from './errors.js';
+import { getEvents, listen, token } from './compatibility.js';
+
+// Relative to public/scripts/extensions/third-party/ST-Character-Judgment/.
+// Lazy import makes unsupported ST versions fail open inside the interceptor.
+const loadSTHelpers = () => import('../../../openai.js');
+
+function textParts(value) {
+    if (typeof value === 'string') return value;
+    if (!Array.isArray(value)) return '';
+    return value.filter(p => p && !p.thought && (!p.type || p.type === 'text' || p.type === 'output_text'))
+        .map(p => typeof p.text === 'string' ? p.text : '').join('\n\n');
+}
+
+export function completionText(data) {
+    // ST normalizes native Gemini into choices[0].message.content, filtering
+    // thought parts on the server. Never use responseContent or reasoning fields.
+    const text = typeof data === 'string' ? data : textParts(data?.choices?.[0]?.message?.content ??
+        data?.choices?.[0]?.text ?? data?.content ?? data?.text ?? data?.message?.content);
+    return normalizeSyntax(text);
+}
+
+export function createTransport(context, loadHelpers = loadSTHelpers) {
+    const settings = context.chatCompletionSettings ? structuredClone(context.chatCompletionSettings) : null;
+    const info = { source: settings?.chat_completion_source ?? context.mainApi, model: null,
+        maxTokens: settings?.openai_max_tokens, type: 'quiet', streaming: false, adapter: 'preparing' };
+    let helpers;
+    return { info, async request(prompt, signal, guard, onResponse = () => {}) {
+        const check = () => { guard(); if (signal.aborted) throw signal.reason; };
+        check();
+        if (context.mainApi === 'openai' && settings && typeof context.ChatCompletionService?.sendRequest === 'function') {
+            helpers ??= await loadHelpers().catch(() => ({})); check();
+            const { getChatCompletionModel, createGenerationParameters } = helpers;
+            if (typeof getChatCompletionModel === 'function' && typeof createGenerationParameters === 'function') {
+                const model = getChatCompletionModel(settings); info.model = model; info.adapter = 'abortable-public-request';
+                const { generate_data } = await createGenerationParameters(settings, model, 'quiet', [{ role: 'user', content: prompt }]);
+                check();
+                if (!generate_data || generate_data.stream || (generate_data.n && generate_data.n !== 1)) throw new JudgmentError('unsupported-api', 'quiet 요청 형식이 예상과 다릅니다.');
+                const response = await context.ChatCompletionService.sendRequest(generate_data, false, signal); check();
+                onResponse({ finishReason: response?.choices?.[0]?.finish_reason ?? null });
+                return completionText(response);
+            }
+        }
+        info.adapter = 'official-generateRaw';
+        return rawRequest(context, prompt, signal, check, onResponse);
+    } };
+}
+
+let rawSequence = 0;
+async function rawRequest(context, prompt, signal, check, onResponse) {
+    const rawData = context.generateRawData, raw = context.generateRaw;
+    if (typeof rawData !== 'function' && typeof raw !== 'function') throw new JudgmentError('unsupported-api', '공식 generateRaw API를 사용할 수 없습니다.');
+    if (!['openai', 'textgenerationwebui'].includes(context.mainApi) && typeof rawData !== 'function') {
+        throw new JudgmentError('unsupported-api', '이 연결의 독립 입력 hook을 확인할 수 없어 판단을 건너뜁니다.');
+    }
+    const events = getEvents(context), cc = context.mainApi === 'openai';
+    const names = cc ? ['CHAT_COMPLETION_PROMPT_READY', 'CHAT_COMPLETION_SETTINGS_READY'] : ['GENERATE_AFTER_COMBINE_PROMPTS', 'TEXT_COMPLETION_SETTINGS_READY'];
+    if (!names.some(name => events[name])) throw new JudgmentError('unsupported-api', '독립 Stage 요청 hook을 사용할 수 없습니다.');
+    const marker = token('STAGE', ++rawSequence); let applied = false;
+    // Raw helpers substitute macros and may format user text. Correlate using a
+    // fresh marker, then restore the exact authoring input in this request only.
+    const hook = payload => {
+        if (applied) return;
+        const list = payload?.chat ?? payload?.messages;
+        if (Array.isArray(list)) {
+            if (list.length !== 1 || typeof list[0]?.content !== 'string' || !list[0].content.includes(marker)) return;
+            try { check(); } catch { list[0].content = ''; return; }
+            list[0].content = prompt; applied = true;
+        } else if (typeof payload?.prompt === 'string' && payload.prompt.includes(marker)) {
+            try { check(); } catch { payload.prompt = ''; return; }
+            payload.prompt = prompt; applied = true;
+        }
+    };
+    const offs = names.map(name => listen(context, name, hook));
+    const detach = () => { for (const off of offs) off(); };
+    signal.addEventListener('abort', detach, { once: true });
+    try {
+        check();
+        const args = { prompt: marker, api: context.mainApi, instructOverride: true, trimNames: false };
+        const response = typeof rawData === 'function' ? await rawData(args) :
+            raw.length >= 2 ? await raw(marker, context.mainApi, true, false, '', null, false) : await raw(args);
+        check();
+        if (!applied) throw new JudgmentError('unsupported-api', '독립 Stage 입력을 확인하지 못해 결과를 폐기합니다.');
+        onResponse({ finishReason: typeof response === 'object' ? response?.choices?.[0]?.finish_reason ?? null : null });
+        const data = context.mainApi === 'novel' ? response?.output ?? response : response?.results?.[0]?.text ?? response;
+        return completionText(data);
+    } finally { signal.removeEventListener('abort', detach); detach(); }
+}

@@ -1,1 +1,30 @@
-import{ENTRY as t,slot as r}from"./prompt-order.js";export function createEngineBridge(e,n){const o=new Map;return{install:function(i){if(o.has(i))return i;if("function"!=typeof i?.getPromptCollection||"function"!=typeof i.preparePrompt)throw Error("CJ Engine용 native Prompt Manager 준비 API를 확인할 수 없습니다.");const c=i.getPromptCollection;let p=!0;function l(o,...i){if(!p)return c.call(this,o,...i);const l=e(),s=String(o||"normal").toLowerCase().trim();let a=!1;try{a=!!l&&!l.sent&&l.mode===s&&n(l)}catch{}const f=this.preparePrompt;function m(e,...n){if(e?.identifier!==t.run)return f.call(this,e,...n);const o=f.call(this,a?e:{...e,content:""},...n);return a&&(o.content=r("run")+`\n\x3c!--CJ_OWNED:${l.nonce}--\x3e`+o.content+`\x3c!--/CJ_OWNED:${l.nonce}--\x3e`),o}this.preparePrompt=m;try{return c.call(this,o,...i)}finally{this.preparePrompt===m&&(this.preparePrompt=f)}}return i.getPromptCollection=l,o.set(i,()=>{p=!1,i.getPromptCollection===l&&(i.getPromptCollection=c)}),i},dispose(){for(const t of o.values())t();o.clear()}}}
+import { ENTRY, slot } from './prompt-order.js';
+// Only native prepared request copies are wrapped. Persistent user definitions
+// are read-only. Suppress the Engine BEFORE ST macro expansion when bypassed.
+export function createEngineBridge(getRun, isLive) {
+    const installed=new Map();
+    function install(manager) {
+        if(installed.has(manager))return manager;
+        if(typeof manager?.getPromptCollection!=='function'||typeof manager.preparePrompt!=='function')throw Error('CJ Engine용 native Prompt Manager 준비 API를 확인할 수 없습니다.');
+        const original=manager.getPromptCollection;let attached=true;
+        function wrapped(type,...args) {
+            if(!attached)return original.call(this,type,...args);
+            const run=getRun(),mode=String(type||'normal').toLowerCase().trim();
+            let use=false;try{use=!!run&&!run.sent&&run.mode===mode&&isLive(run);}catch{}
+            const prepare=this.preparePrompt;
+            function requestPrepare(prompt,...rest) {
+                if(prompt?.identifier!==ENTRY.run)return prepare.call(this,prompt,...rest);
+                const copy=prepare.call(this,use?prompt:{...prompt,content:''},...rest);
+                if(use)copy.content=slot('run')+`\n<!--CJ_OWNED:${run.nonce}-->`+copy.content+`<!--/CJ_OWNED:${run.nonce}-->`;
+                return copy;
+            }
+            this.preparePrompt=requestPrepare;
+            try{return original.call(this,type,...args);}
+            finally{if(this.preparePrompt===requestPrepare)this.preparePrompt=prepare;}
+        }
+        manager.getPromptCollection=wrapped;
+        installed.set(manager,()=>{attached=false;if(manager.getPromptCollection===wrapped)manager.getPromptCollection=original;});
+        return manager;
+    }
+    return {install,dispose(){for(const off of installed.values())off();installed.clear();}};
+}

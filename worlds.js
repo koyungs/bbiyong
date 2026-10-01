@@ -1,1 +1,104 @@
-import{digest as t,identity as r,stateFor as e}from"./state.js";import{createTransport as n}from"./transport.js";import{normalizeSyntax as o,enumValue as i}from"./syntax.js";import{worldClassificationPrompt as s}from"./prompts.js";export const WORLD_KEY="character_judgment_worlds_v1";export const worldKey=(t,r)=>JSON.stringify([t,String(r)]);export function worldRegistry(t){if(!t.extensionSettings)throw Error("WI registry용 extension settings API가 없습니다.");const r=t.extensionSettings[WORLD_KEY]??={schemaVersion:1,nextW:1,entries:{}};if(1!==r.schemaVersion)throw Error("지원하지 않는 WI registry schema");return r}const a=async t=>{if("function"!=typeof t.saveSettingsDebounced)throw Error("WI registry 저장 API가 없습니다.");await t.saveSettingsDebounced()},c=t=>{try{e(t).currentSnapshot=null}catch{}};function l(t,r,e,n,o=""){const i=worldRegistry(t),s=worldKey(r,e);let a=i.entries[s];return a||(a=i.entries[s]={world:r,uid:String(e),sourceId:"W"+String(i.nextW++).padStart(2,"0"),fingerprint:n,currentFingerprint:n,role:null,classificationMode:"AUTO",status:"unclassified"}),a.label=o,a.currentFingerprint=n,a.status=a.fingerprint===n?a.role?"fresh":"unclassified":"stale",a}function d(t,r,e,n,o){r.fingerprint!==e&&(r.sourceId="W"+String(worldRegistry(t).nextW++).padStart(2,"0")),Object.assign(r,{fingerprint:e,currentFingerprint:e,role:n,classificationMode:o,status:n?"fresh":"unclassified"})}export async function readWorld(r,e,{check:n=()=>{}}={}){if("function"!=typeof r.loadWorldInfo)throw Error("native WI 읽기 API가 없습니다.");const o=await r.loadWorldInfo(e);if(n(),!o?.entries||"object"!=typeof o.entries)throw Error("WI entry 목록을 읽지 못했습니다.");const i=await Promise.all(Object.entries(o.entries).map(async([r,n])=>({world:e,uid:String(n.uid??r),text:String(n.content??""),label:String(n.comment??""),fingerprint:await t(String(n.content??""))})));n();for(const t of i)t.metadata=l(r,e,t.uid,t.fingerprint,t.label);const s=new Set(i.map(t=>worldKey(e,t.uid)));for(const t of Object.values(worldRegistry(r).entries))t.world!==e||s.has(worldKey(e,t.uid))||(t.status="missing");return i}export async function observeActivated(r,e,n=()=>{}){const o=new Map;for(const t of e)"string"!=typeof t?.world||null==t.uid||o.has(t.world)||o.set(t.world,await readWorld(r,t.world,{check:n}));n();const i=[];for(const r of e){const e=o.get(r?.world)?.find(t=>t.uid===String(r.uid));if(!e||"string"!=typeof r.content)continue;const n=e.metadata;i.push({sourceId:"stale"===n.status?null:n.sourceId,sourceType:"W",world:r.world,uid:String(r.uid),role:"fresh"===n.status?n.role:"WORLD",classificationMode:n.classificationMode,status:n.status,fingerprint:n.fingerprint,currentFingerprint:n.currentFingerprint,text:r.content,position:r.position,viewFingerprint:await t(r.content)})}return n(),await a(r),i}export function worldSignature(t,r){const e=worldRegistry(t);return JSON.stringify(r.map(t=>{const r=e.entries[worldKey(t.world,t.uid)];return r?[r.sourceId,r.fingerprint,r.currentFingerprint,r.role,r.classificationMode,r.status]:null}))}export function parseWorldRoles(t,r){const e=JSON.parse(o(t));if(1!==e?.schemaVersion||!Array.isArray(e.entries)||e.entries.length!==r.length)throw Error("WI 분류 schema/count 오류");return r.map(t=>{const r=e.entries.filter(r=>r?.sourceId===t.metadata.sourceId);if(1!==r.length||!["CHARACTER","WORLD"].includes(i(r[0].role)))throw Error("WI 분류 ID/role 오류");return i(r[0].role)})}export function createWorldManager({getContext:t,transportFactory:o=n,onUpdate:i=()=>{}}){let l=null;const u=()=>{l?.controller.abort(),l=null};return{list:async function(r){const e=t(),n=await readWorld(e,r);return await a(e),i(),n},setRole:async function(r,e,n){const o=t(),s=(await readWorld(o,r)).find(t=>t.uid===String(e));if(!s)throw Error("WI source가 삭제되었습니다.");if(!["CHARACTER","WORLD","AUTO"].includes(n))throw Error("WI role 오류");return d(o,s.metadata,s.fingerprint,"AUTO"===n?null:n,"AUTO"===n?"AUTO":"MANUAL"),c(o),await a(o),i(),s.metadata},classify:async function(n){u();const f=t(),g=r(f),p=JSON.stringify(f.chatCompletionSettings),w={controller:new AbortController};l=w;const m=()=>{if(l!==w||w.controller.signal.aborted||r(t())!==g||JSON.stringify(t().chatCompletionSettings)!==p)throw Error("WI Auto 분류 취소/연결 변경")};let h;try{const t=(await readWorld(f,n,{check:m})).filter(t=>"AUTO"===t.metadata.classificationMode&&"fresh"!==t.metadata.status);if(!t.length)return await a(f),{classified:0,calls:0};const r=t.map(t=>({...t,metadata:{...t.metadata}})),i=new Promise((t,r)=>w.controller.signal.addEventListener("abort",()=>r(Error("WI Auto 분류 취소/시간 초과")),{once:!0}));h=setTimeout(()=>w.controller.abort(),1e3*e(f).settings.maintenanceTimeoutSeconds);const l=await Promise.race([o(f).request(s(r),w.controller.signal,m),i]);m();const u=parseWorldRoles(l,r),g=await readWorld(f,n,{check:m});m();const p=[];for(let t=0;t<r.length;t++){const e=r[t],n=g.find(t=>t.uid===e.uid);if(!n||n.fingerprint!==e.fingerprint)throw Error("WI 분류 중 원문 변경: 결과 폐기");"MANUAL"!==n.metadata.classificationMode&&p.push({now:n,role:u[t]})}for(const{now:t,role:r}of p)d(f,t.metadata,t.fingerprint,r,"AUTO");return p.length&&c(f),await a(f),{classified:p.length,calls:1}}finally{clearTimeout(h),l===w&&(l=null),i()}},cancel:u,get active(){return Boolean(l)}}}
+import { digest, identity, stateFor } from './state.js';
+import { createTransport } from './transport.js';
+import { normalizeSyntax, enumValue } from './syntax.js';
+import { worldClassificationPrompt } from './prompts.js';
+export const WORLD_KEY='character_judgment_worlds_v1';
+export const worldKey=(world,uid)=>JSON.stringify([world,String(uid)]);
+export function worldRegistry(c) {
+    if(!c.extensionSettings)throw Error('WI registry용 extension settings API가 없습니다.');
+    const r=c.extensionSettings[WORLD_KEY]??={schemaVersion:1,nextW:1,entries:{}};
+    if(r.schemaVersion!==1)throw Error('지원하지 않는 WI registry schema');
+    return r;
+}
+const save=async c=>{if(typeof c.saveSettingsDebounced!=='function')throw Error('WI registry 저장 API가 없습니다.');await c.saveSettingsDebounced();};
+const invalidate=c=>{try{stateFor(c).currentSnapshot=null;}catch{}};
+function register(c,world,uid,fingerprint,label='') {
+    const r=worldRegistry(c),key=worldKey(world,uid);
+    let row=r.entries[key];
+    if(!row)row=r.entries[key]={world,uid:String(uid),sourceId:'W'+String(r.nextW++).padStart(2,'0'),fingerprint,currentFingerprint:fingerprint,role:null,classificationMode:'AUTO',status:'unclassified'};
+    row.label=label;row.currentFingerprint=fingerprint;
+    row.status=row.fingerprint===fingerprint?(row.role?'fresh':'unclassified'):'stale';
+    return row;
+}
+function accept(c,row,fingerprint,role,mode) {
+    if(row.fingerprint!==fingerprint)row.sourceId='W'+String(worldRegistry(c).nextW++).padStart(2,'0');
+    Object.assign(row,{fingerprint,currentFingerprint:fingerprint,role,classificationMode:mode,status:role?'fresh':'unclassified'});
+}
+export async function readWorld(c,world,{check=()=>{}}={}) {
+    if(typeof c.loadWorldInfo!=='function')throw Error('native WI 읽기 API가 없습니다.');
+    const data=await c.loadWorldInfo(world);check();
+    if(!data?.entries||typeof data.entries!=='object')throw Error('WI entry 목록을 읽지 못했습니다.');
+    const sources=await Promise.all(Object.entries(data.entries).map(async([key,e])=>({world,uid:String(e.uid??key),text:String(e.content??''),label:String(e.comment??''),fingerprint:await digest(String(e.content??''))})));
+    check();
+    for(const source of sources)source.metadata=register(c,world,source.uid,source.fingerprint,source.label);
+    const keys=new Set(sources.map(s=>worldKey(world,s.uid)));
+    for(const row of Object.values(worldRegistry(c).entries))if(row.world===world&&!keys.has(worldKey(world,row.uid)))row.status='missing';
+    return sources;
+}
+export async function observeActivated(c,activated,check=()=>{}) {
+    const books=new Map();
+    for(const e of activated)if(typeof e?.world==='string'&&e.uid!=null&&!books.has(e.world))books.set(e.world,await readWorld(c,e.world,{check}));
+    check();const result=[];
+    for(const e of activated){
+        const source=books.get(e?.world)?.find(x=>x.uid===String(e.uid));
+        if(!source||typeof e.content!=='string')continue;
+        const row=source.metadata;
+        // Native activation entries are read only. Their content can already
+        // contain substituted macros; raw fingerprints come from loadWorldInfo.
+        result.push({sourceId:row.status==='stale'?null:row.sourceId,sourceType:'W',world:e.world,uid:String(e.uid),
+            role:row.status==='fresh'?row.role:'WORLD',classificationMode:row.classificationMode,status:row.status,
+            fingerprint:row.fingerprint,currentFingerprint:row.currentFingerprint,text:e.content,
+            position:e.position,viewFingerprint:await digest(e.content)});
+    }
+    check();await save(c);return result;
+}
+export function worldSignature(c,rows) {
+    const registry=worldRegistry(c);
+    return JSON.stringify(rows.map(x=>{const r=registry.entries[worldKey(x.world,x.uid)];return r?[r.sourceId,r.fingerprint,r.currentFingerprint,r.role,r.classificationMode,r.status]:null;}));
+}
+export function parseWorldRoles(raw,sources) {
+    const data=JSON.parse(normalizeSyntax(raw));
+    if(data?.schemaVersion!==1||!Array.isArray(data.entries)||data.entries.length!==sources.length)throw Error('WI 분류 schema/count 오류');
+    return sources.map(s=>{
+        const matches=data.entries.filter(x=>x?.sourceId===s.metadata.sourceId);
+        if(matches.length!==1||!['CHARACTER','WORLD'].includes(enumValue(matches[0].role)))throw Error('WI 분류 ID/role 오류');
+        return enumValue(matches[0].role);
+    });
+}
+export function createWorldManager({getContext,transportFactory=createTransport,onUpdate=()=>{}}) {
+    let active=null;
+    const cancel=()=>{active?.controller.abort();active=null;};
+    async function list(world){const c=getContext(),rows=await readWorld(c,world);await save(c);onUpdate();return rows;}
+    async function setRole(world,uid,value){
+        const c=getContext(),rows=await readWorld(c,world),s=rows.find(x=>x.uid===String(uid));
+        if(!s)throw Error('WI source가 삭제되었습니다.');
+        if(!['CHARACTER','WORLD','AUTO'].includes(value))throw Error('WI role 오류');
+        accept(c,s.metadata,s.fingerprint,value==='AUTO'?null:value,value==='AUTO'?'AUTO':'MANUAL');
+        invalidate(c);await save(c);onUpdate();return s.metadata;
+    }
+    async function classify(world){
+        cancel();const c=getContext(),chat=identity(c),connection=JSON.stringify(c.chatCompletionSettings),op={controller:new AbortController()};active=op;
+        const check=()=>{if(active!==op||op.controller.signal.aborted||identity(getContext())!==chat||JSON.stringify(getContext().chatCompletionSettings)!==connection)throw Error('WI Auto 분류 취소/연결 변경');};
+        let timer;
+        try{
+            const rows=await readWorld(c,world,{check});
+            const selected=rows.filter(s=>s.metadata.classificationMode==='AUTO'&&s.metadata.status!=='fresh');
+            if(!selected.length){await save(c);return{classified:0,calls:0};}
+            const frozen=selected.map(s=>({...s,metadata:{...s.metadata}}));
+            const cancellation=new Promise((_,reject)=>op.controller.signal.addEventListener('abort',()=>reject(Error('WI Auto 분류 취소/시간 초과')),{once:true}));
+            timer=setTimeout(()=>op.controller.abort(),stateFor(c).settings.maintenanceTimeoutSeconds*1000);
+            const raw=await Promise.race([transportFactory(c).request(worldClassificationPrompt(frozen),op.controller.signal,check),cancellation]);check();
+            const roles=parseWorldRoles(raw,frozen),latest=await readWorld(c,world,{check});check();
+            const changes=[];
+            for(let i=0;i<frozen.length;i++){
+                const old=frozen[i],now=latest.find(x=>x.uid===old.uid);
+                if(!now||now.fingerprint!==old.fingerprint)throw Error('WI 분류 중 원문 변경: 결과 폐기');
+                if(now.metadata.classificationMode==='MANUAL')continue;
+                changes.push({now,role:roles[i]});
+            }
+            for(const {now,role}of changes)accept(c,now.metadata,now.fingerprint,role,'AUTO');
+            if(changes.length)invalidate(c);await save(c);return{classified:changes.length,calls:1};
+        }finally{clearTimeout(timer);if(active===op)active=null;onUpdate();}
+    }
+    return{list,setRole,classify,cancel,get active(){return Boolean(active);}};
+}

@@ -1,1 +1,3 @@
-export class JudgmentError extends Error{constructor(r,e){super(e),this.name="JudgmentError",this.code=r}}
+export class JudgmentError extends Error {
+    constructor(code, message) { super(message); this.name = 'JudgmentError'; this.code = code; }
+}

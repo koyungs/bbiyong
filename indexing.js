@@ -1,1 +1,75 @@
-import{stateFor as t,identity as e,messageFingerprint as r,persist as n,target as s}from"./state.js";import{synchronizeMessages as o,synchronizeCard as a}from"./source-index.js";import{createTransport as c}from"./transport.js";import{indexingPrompt as i}from"./prompts.js";import{normalizeSyntax as l,enumValue as g}from"./syntax.js";export function validateBindings(t,e){const r="string"==typeof t?JSON.parse(l(t)):t;if(1!==r?.schemaVersion||!Array.isArray(r.messages)||r.messages.length!==e.length)throw Error("Stage 1A M 개수/schemaVersion 오류");const n=new Set,s=[];for(const t of e){const e=r.messages.filter(e=>e.sourceId===t.sourceId);if(1!==e.length||n.has(t.sourceId))throw Error("Stage 1A M ID 누락/중복");n.add(t.sourceId);const o=e[0].spans;if(!Array.isArray(o)||!o.length||o.length>Math.max(1,t.text.length))throw Error("Stage 1A L span 개수 오류");let a=0;const c=o.map((e,r)=>{if("string"!=typeof e.text||!e.text.length&&t.text.length||"string"!=typeof e.characterSubject||!e.characterSubject.trim())throw Error("Stage 1A span 구조 오류");const n="NONE"===g(e.characterSubject)?"NONE":e.characterSubject,s=r?"NONE"===g(o[r-1].characterSubject)?"NONE":o[r-1].characterSubject:null;if(r&&s.trim()===n.trim())throw Error("Stage 1A 같은 CHARACTER_SUBJECT의 연속 L 분할");const c=a;if(a+=e.text.length,t.text.slice(c,a)!==e.text)throw Error("Stage 1A 원문 변경/재정렬/M 경계 초과");return{sourceId:`L${t.sourceId.slice(1)}-${String(r+1).padStart(2,"0")}`,sourceType:"L",parentId:t.sourceId,sourceSpeaker:t.sourceSpeaker,characterSubject:n,start:c,end:a,role:"LOG"}});if(a!==t.text.length)throw Error("Stage 1A 원문 누락");s.push({sourceId:t.sourceId,spans:c})}return s}export function createIndexer({getContext:l,transportFactory:g=c,onUpdate:u=()=>{}}){let d=null;const h=()=>{d?.controller.abort(),d=null};return{indexMessages:async function({staleOnly:c=!1}={}){h();const p=l(),f=e(p),m=JSON.stringify(s(p)),S={controller:new AbortController};d=S;const y=()=>{if(d!==S||S.controller.signal.aborted||e(l())!==f||JSON.stringify(s(l()))!==m)throw Error("인덱싱이 취소되었거나 채팅/카드가 변경되었습니다.")};let x;try{const e=(await o(p)).filter(t=>!c||["stale","unindexed"].includes(t.entry.status)),s=e.map(({message:t,entry:e})=>({sourceId:e.sourceId,sourceSpeaker:String(t.name??""),text:String(t.mes??"")})),u=await Promise.all(e.map(t=>r(t.message)));if(y(),!s.length)return{indexed:0,calls:0};const d=await a(p);y();const h=g(p).request(i(s,d.map(t=>({...t.entry,text:t.text}))),S.controller.signal,y),f=new Promise((t,e)=>S.controller.signal.addEventListener("abort",()=>e(Error("인덱싱 취소/시간 초과")),{once:!0}));x=setTimeout(()=>S.controller.abort(),1e3*t(p).settings.maintenanceTimeoutSeconds);const m=await Promise.race([h,f]);y();const w=validateBindings(m,s);for(let t=0;t<e.length;t++)if(!l().chat.includes(e[t].message)||await r(e[t].message)!==u[t])throw Error("인덱싱 중 원문 변경: 결과 전체를 폐기합니다.");y(),e.some((t,e)=>t.entry.fingerprint!==u[e]||JSON.stringify(t.entry.spans)!==JSON.stringify(w[e].spans))&&(t(p).currentSnapshot=null);for(let t=0;t<e.length;t++)Object.assign(e[t].entry,{spans:w[t].spans,indexed:!0,status:"fresh",fingerprint:u[t],currentFingerprint:u[t],sourceSpeaker:s[t].sourceSpeaker});return await n(p,{chat:!0}),{indexed:e.length,calls:1}}finally{clearTimeout(x),d===S&&(d=null),u()}},indexCard:async function(){h();const t=l(),r=e(t),o=JSON.stringify(s(t)),c={controller:new AbortController};d=c;try{const i=await a(t,!0,{check:()=>{if(d!==c||c.controller.signal.aborted||e(l())!==r||JSON.stringify(s(l()))!==o)throw Error("카드 인덱싱 중 채팅/카드가 변경되었습니다.")}});return await n(t),{indexed:i.length,calls:0}}finally{d===c&&(d=null),u()}},cancel:h,get active(){return Boolean(d)}}}
+import { stateFor, identity, messageFingerprint, persist, target } from './state.js';
+import { synchronizeMessages, synchronizeCard } from './source-index.js';
+import { createTransport } from './transport.js';
+import { indexingPrompt } from './prompts.js';
+import { normalizeSyntax, enumValue } from './syntax.js';
+
+export function validateBindings(raw, sources) {
+    const data = typeof raw === 'string' ? JSON.parse(normalizeSyntax(raw)) : raw;
+    if (data?.schemaVersion !== 1 || !Array.isArray(data.messages) || data.messages.length !== sources.length) throw Error('Stage 1A M 개수/schemaVersion 오류');
+    const used = new Set(), result = [];
+    for (const source of sources) {
+        const matches = data.messages.filter(m=>m.sourceId === source.sourceId);
+        if (matches.length !== 1 || used.has(source.sourceId)) throw Error('Stage 1A M ID 누락/중복');
+        used.add(source.sourceId);
+        const spans = matches[0].spans;
+        if (!Array.isArray(spans) || !spans.length || spans.length > Math.max(1,source.text.length)) throw Error('Stage 1A L span 개수 오류');
+        let offset = 0;
+        const parsed = spans.map((s,i)=>{
+            if (typeof s.text !== 'string' || (!s.text.length && source.text.length) || typeof s.characterSubject !== 'string' || !s.characterSubject.trim()) throw Error('Stage 1A span 구조 오류');
+            const subject=enumValue(s.characterSubject)==='NONE'?'NONE':s.characterSubject;
+            const previous=i?(enumValue(spans[i-1].characterSubject)==='NONE'?'NONE':spans[i-1].characterSubject):null;
+            if (i && previous.trim() === subject.trim()) throw Error('Stage 1A 같은 CHARACTER_SUBJECT의 연속 L 분할');
+            const start = offset; offset += s.text.length;
+            if (source.text.slice(start,offset) !== s.text) throw Error('Stage 1A 원문 변경/재정렬/M 경계 초과');
+            return { sourceId:`L${source.sourceId.slice(1)}-${String(i+1).padStart(2,'0')}`, sourceType:'L', parentId:source.sourceId,
+                sourceSpeaker:source.sourceSpeaker, characterSubject:subject, start, end:offset, role:'LOG' };
+        });
+        if (offset !== source.text.length) throw Error('Stage 1A 원문 누락');
+        result.push({ sourceId:source.sourceId, spans:parsed });
+    }
+    return result;
+}
+export function createIndexer({ getContext, transportFactory = createTransport, onUpdate = ()=>{} }) {
+    let active = null;
+    const cancel = () => { active?.controller.abort(); active = null; };
+    async function indexMessages({ staleOnly = false } = {}) {
+        cancel(); const c = getContext(), chatId = identity(c), card = JSON.stringify(target(c));
+        const op = { controller:new AbortController() }; active = op;
+        const check = () => {
+            if (active !== op || op.controller.signal.aborted || identity(getContext()) !== chatId || JSON.stringify(target(getContext())) !== card) throw Error('인덱싱이 취소되었거나 채팅/카드가 변경되었습니다.');
+        };
+        let timer;
+        try {
+            const rows = await synchronizeMessages(c), selected = rows.filter(x=>!staleOnly || ['stale','unindexed'].includes(x.entry.status));
+            const sources = selected.map(({message,entry})=>({ sourceId:entry.sourceId, sourceSpeaker:String(message.name ?? ''), text:String(message.mes ?? '') }));
+            const hashes = await Promise.all(selected.map(x=>messageFingerprint(x.message)));
+            check(); if (!sources.length) return { indexed:0,calls:0 };
+            const cards = await synchronizeCard(c);
+            check();
+            const request = transportFactory(c).request(indexingPrompt(sources,cards.map(x=>({...x.entry,text:x.text}))),op.controller.signal,check);
+            const cancellation = new Promise((_,reject)=>op.controller.signal.addEventListener('abort',()=>reject(Error('인덱싱 취소/시간 초과')), {once:true}));
+            timer = setTimeout(()=>op.controller.abort(),stateFor(c).settings.maintenanceTimeoutSeconds*1000);
+            const raw = await Promise.race([request,cancellation]); check();
+            const parsed = validateBindings(raw,sources);
+            for(let i=0;i<selected.length;i++) {
+                if (!getContext().chat.includes(selected[i].message) || await messageFingerprint(selected[i].message) !== hashes[i]) throw Error('인덱싱 중 원문 변경: 결과 전체를 폐기합니다.');
+            }
+            check();
+            if (selected.some((x,i)=>x.entry.fingerprint!==hashes[i]||JSON.stringify(x.entry.spans)!==JSON.stringify(parsed[i].spans))) stateFor(c).currentSnapshot=null;
+            for(let i=0;i<selected.length;i++) Object.assign(selected[i].entry,{spans:parsed[i].spans,indexed:true,status:'fresh',fingerprint:hashes[i],currentFingerprint:hashes[i],sourceSpeaker:sources[i].sourceSpeaker});
+            await persist(c,{chat:true}); return { indexed:selected.length,calls:1 };
+        } finally { clearTimeout(timer); if(active===op)active=null; onUpdate(); }
+    }
+    async function indexCard() {
+        cancel();const c=getContext(),chatId=identity(c),card=JSON.stringify(target(c));
+        const op={controller:new AbortController()};active=op;
+        try {
+            const rows=await synchronizeCard(c,true,{check:()=>{
+                if(active!==op||op.controller.signal.aborted||identity(getContext())!==chatId||JSON.stringify(target(getContext()))!==card)throw Error('카드 인덱싱 중 채팅/카드가 변경되었습니다.');
+            }});
+            await persist(c);return {indexed:rows.length,calls:0};
+        }finally{if(active===op)active=null;onUpdate();}
+    }
+    return { indexMessages,indexCard,cancel,get active(){return Boolean(active);} };
+}

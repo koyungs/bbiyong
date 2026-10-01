@@ -1,8 +1,8 @@
-# Character Judgment · 0.6.0-rc.7
+# Character Judgment · 0.6.0-rc.7 — 일반판
 
 사용자 소유 **CJ · Engine**을 기존 RP preset에 삽입하는 구조 후보입니다. 설치 주소: https://github.com/koyungs/bbiyong.git
 
-로컬 검수 패키지이며 GitHub 게시본과 같다고 가정하지 마세요. ZIP의 manifest.json과 index.js는 확장 폴더 바로 아래에 둡니다.
+이 저장소는 난독화 없는 rc.7 일반판입니다. 런타임 코드와 기본 프롬프트를 평문으로 공개합니다. manifest.json과 index.js는 저장소 루트에 있으며 위 설치 주소를 SillyTavern의 Install Extension에 그대로 입력합니다.
 
 rc.7은 그룹 생성 완료 뒤 현재 캐릭터 선택이 초기화되어도 생성 당시의 실제 avatar로 C/Snapshot을 확인하는 수정입니다. 같은 이름의 다른 멤버로 대상을 추정하지 않으며, 응답의 native avatar가 맞을 때만 Final과 Snapshot을 저장합니다. Engine 본문과 첫 action 선택 계약은 rc.6과 같습니다.
 
@@ -35,7 +35,7 @@ Normal/Regenerate는 요청 전에 확장 JS가 S1을 고정하고 secure RNG로
 
 응답은 기존 `cj_result` JSON + `cj_final` prose(또는 Swipe의 final only)를 사용합니다. 같은 nonce의 `cj_internal`을 앞에 하나 둘 수 있으며 내용은 해석·보관하지 않습니다. **완료된 응답이 검증에 성공한 뒤 final만 저장**합니다. 외부의 완결된 think/thinking/reasoning/reflection block과 단일 code fence는 형식 정규화 대상입니다. JSON 문자열·Final 내부 태그는 건드리지 않습니다. 없는 ID나 의미를 보정하지 않습니다.
 
-Protected는 casual-analysis 난독화입니다. Engine은 의도적으로 사용자에게 편집 가능한 평문으로 Prompt Manager에 설치되므로 그 본문을 비밀로 보장하지 않습니다. 공개 ZIP에 private source, 테스트 자료, source map, API key는 포함하지 않습니다.
+일반판은 난독화하지 않습니다. 기본 프롬프트와 런타임 코드를 읽고 수정할 수 있으며, 사용자 소유 Engine은 Prompt Manager에서 편집합니다. 공개 배포 파일에는 native patch, installer, 테스트·개인 검증 자료, source map, API key를 포함하지 않습니다.
 
 Normal은 **pre-call RNG**입니다. 모델은 후보를 생성하는 동안 미리 선택된 주소를 볼 수 있습니다. 후보 생성 완료 후 확장이 completion 중간에 개입하는 방식이 아닙니다. Swipe는 이미 저장된 후보를 대상으로 하는 **post-Snapshot RNG**입니다. 첫 Normal의 priority 정렬은 사용자 Engine의 책임이며 확장은 priority를 다시 판단하거나 정렬하지 않습니다.
 

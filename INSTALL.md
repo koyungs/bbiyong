@@ -2,9 +2,9 @@
 
 Install Extension 주소: https://github.com/koyungs/bbiyong.git
 
-배포 루트에 manifest.json, index.js, style.css 및 런타임 모듈을 둡니다. ST-Character-Judgment 같은 상위 폴더를 추가하지 않습니다. native patch/installer는 필요하지 않습니다. 로컬 ZIP 후보와 GitHub 게시 버전은 다를 수 있습니다.
+배포 루트에 manifest.json, index.js, style.css 및 런타임 모듈을 둡니다. ST-Character-Judgment 같은 상위 폴더를 추가하지 않습니다. native patch/installer는 포함하지 않습니다. 현재 GitHub main은 난독화 없는 rc.7 일반판입니다.
 
-Plain-Test와 Protected를 동시에 설치하지 마세요. 같은 macro/interceptor 이름을 사용합니다. Plain-Test와 Review Package는 공개 업로드 대상이 아닙니다.
+일반판과 Protected를 동시에 설치하지 마세요. 같은 macro/interceptor 이름을 사용합니다. 기존 bbiyong을 업데이트하면 같은 확장 경로의 Protected 파일이 일반판으로 교체됩니다. 전체 Review Package와 개인 검증 자료는 설치 파일이 아닙니다.
 
 1. 기존 채팅·사용자 설정·RP preset을 백업하고 확장 파일을 교체합니다.
 2. 사용할 채팅과 Chat Completion 연결(n=1)을 엽니다. 기존 활성화 설정과 registry는 보존하며 새 채팅은 기본 비활성화입니다.
